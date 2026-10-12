@@ -2,28 +2,29 @@ import tkinter as tk
 from tkinter import messagebox
 import os
 import random
-import string # برای تولید حروف و اعداد تصادفی
+import string
+import base64  # کتابخانه استاندارد برای تبدیل به کدِ غیرخوانا
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FILE_PATH = os.path.join(BASE_DIR, "passwords.txt")
+
+# توابع رمزنگاری و رمزگشایی
+def encrypt(text):
+    return base64.b64encode(text.encode()).decode()
+
+def decrypt(text):
+    return base64.b64decode(text.encode()).decode()
 
 def copy_to_clipboard(text):
     root.clipboard_clear()
     root.clipboard_append(text)
     root.update()
 
-# تابع جدید برای تولید پسورد
 def generate_password():
-    # ترکیب حروف بزرگ، کوچک، اعداد و کاراکترهای خاص
     chars = string.ascii_letters + string.digits + string.punctuation
-    # ساخت پسورد 12 کاراکتری
     password = ''.join(random.choice(chars) for i in range(12))
-    
-    # نمایش در فیلد پسورد
     pass_entry.delete(0, 'end')
     pass_entry.insert(0, password)
-    
-    # کپی خودکار به کلیپ‌بورد برای راحتی بیشتر
     copy_to_clipboard(password)
 
 def save_password():
@@ -34,14 +35,16 @@ def save_password():
     if website == "" or password == "":
         messagebox.showwarning("خطا", "لطفاً وب‌سایت و پسورد را وارد کنید!")
     else:
+        # ذخیره با رمزنگاری
+        encrypted_pass = encrypt(password)
         with open(FILE_PATH, "a", encoding="utf-8") as f:
-            f.write(f"Web: {website} | User: {username} | Pass: {password}\n")
+            f.write(f"Web: {website} | User: {username} | Pass: {encrypted_pass}\n")
         
         copy_to_clipboard(password)
         website_entry.delete(0, 'end')
         user_entry.delete(0, 'end')
         pass_entry.delete(0, 'end')
-        messagebox.showinfo("موفقیت", "پسورد ذخیره و کپی شد!")
+        messagebox.showinfo("موفقیت", "پسورد امن ذخیره شد!")
 
 def view_passwords():
     if not os.path.exists(FILE_PATH):
@@ -49,22 +52,28 @@ def view_passwords():
         return
     
     view_win = tk.Toplevel(root)
-    view_win.title("Saved Passwords")
-    view_win.geometry("400x300")
+    view_win.title("Saved Passwords (Decrypted)")
+    view_win.geometry("500x350")
     
-    text_area = tk.Text(view_win, width=50, height=15)
+    text_area = tk.Text(view_win, width=60, height=20)
     text_area.pack(pady=10)
     
     with open(FILE_PATH, "r", encoding="utf-8") as f:
-        content = f.read()
-        text_area.insert("1.0", content)
+        lines = f.readlines()
+        for line in lines:
+            # جدا کردن بخش پسورد و رمزگشایی آن
+            if "| Pass: " in line:
+                parts = line.split("| Pass: ")
+                decrypted_pass = decrypt(parts[1].strip())
+                text_area.insert("end", f"{parts[0]} | Pass: {decrypted_pass}\n")
     
     text_area.config(state="disabled")
 
 root = tk.Tk()
-root.title("Password Manager")
-root.geometry("300x300") # پنجره را کمی بلندتر کردیم
+root.title("Secure Password Manager")
+root.geometry("300x350")
 
+# UI Elements
 tk.Label(root, text="Website:").grid(row=0, column=0, padx=10, pady=5)
 website_entry = tk.Entry(root)
 website_entry.grid(row=0, column=1, padx=10, pady=5)
@@ -74,11 +83,10 @@ user_entry = tk.Entry(root)
 user_entry.grid(row=1, column=1, padx=10, pady=5)
 
 tk.Label(root, text="Password:").grid(row=2, column=0, padx=10, pady=5)
-pass_entry = tk.Entry(root, show="*")
+pass_entry = tk.Entry(root)
 pass_entry.grid(row=2, column=1, padx=10, pady=5)
 
-# دکمه جدید برای تولید پسورد
-gen_btn = tk.Button(root, text="Generate Password", command=generate_password)
+gen_btn = tk.Button(root, text="Generate", command=generate_password)
 gen_btn.grid(row=3, column=1, pady=5)
 
 save_btn = tk.Button(root, text="Save Password", command=save_password)
